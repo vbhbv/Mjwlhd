@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-بوت تيليجرام الأكاديمي المطور - نسخة الإنتاج الاقتصادي المقاوم للانهيار
+Academic Knowledge Telegram Bot - Stable Production Version
 """
 import os
 import re
@@ -16,7 +16,7 @@ from deep_translator import GoogleTranslator
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-# 1. إعداد نظام التتبع والـ Logging لحفظ الأداء ومراقبة الأخطاء
+# 1. Logging Setup
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -27,13 +27,12 @@ DB_NAME = "bot_academic_memory.db"
 VAULT_DIR = "bot_vault"
 os.makedirs(VAULT_DIR, exist_ok=True)
 
-# 2. طبقة البيانات الاقتصادية (SQLite + WAL Mode)
+# 2. Database Layer (SQLite + WAL Mode)
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA synchronous=NORMAL;")
         cursor = conn.cursor()
-        # جدول الذاكرة التراكمية لحظر تكرار الترجمة وتوفير الـ API
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS translation_memory (
                 text_hash TEXT PRIMARY KEY,
@@ -79,9 +78,9 @@ class LocalTranslationMemory:
             except Exception as e:
                 logging.error(f"Error saving to cache: {e}")
 
-# 3. صمام الأمان وتقييد الموارد لحماية البوت الآخر (Resource Limiter)
+# 3. Resource and Guardrail Validator
 class StrictResourceValidator:
-    MAX_PARAGRAPHS = 1500  # حد أقصى للفقرات لحماية المعالج
+    MAX_PARAGRAPHS = 1500  
     MAX_TABLES = 30
 
     @classmethod
@@ -100,7 +99,7 @@ class StrictResourceValidator:
                 if p_count > cls.MAX_PARAGRAPHS or t_count > cls.MAX_TABLES:
                     raise ValueError(f"الملف ضخم جداً حوسبياً لدعم خادمك المحدود! (الفقرات: {p_count}/{cls.MAX_PARAGRAPHS})")
 
-# 4. طبقة الـ Document Object Model (DOM)
+# 4. Document Object Model (DOM) Processor
 class NodeType:
     PARAGRAPH = "paragraph"
     TABLE_CELL = "table_cell"
@@ -139,21 +138,20 @@ class DocumentDOMProcessor:
             if node.translated_text:
                 try:
                     run = node.raw_object.add_run(f"\n{node.translated_text}")
-                    run.font.color.rgb = RGBColor(28, 116, 182) # تلوين أكاديمي ثنائي احترافي
+                    run.font.color.rgb = RGBColor(28, 116, 182) 
                     run.font.size = Pt(10)
                     run.italic = True
                 except Exception:
                     pass
         self.doc.save(output_path)
 
-# 5. خط الإنتاج وعصا المعرفة والـ Plugins المدمجة اقتصادياً
+# 5. Core Pipeline Engine
 class ProcessingEngine:
     @staticmethod
     def process_document(dom: DocumentDOMProcessor, domain: str) -> dict:
         tokens_map = {}
         token_id = 1
         
-        # أ: طبقة الحماية المتقدمة للكيانات العلمية والبرمجية والمعادلات f(x) / O(n log n)
         patterns = [
             r'\b[OΩΘo]\s*\(\s*[nlog\d\s\+\-\*\/²\^]+\s*\)',
             r'\b[A-Za-z]\s*\(\s*[A-Za-z0-9_\s|]+\s*\)',
@@ -170,9 +168,8 @@ class ProcessingEngine:
                     token_id += 1
             node.processed_text = text
 
-        # ب: الترجمة الذكية عبر الوسوم القياسية والـ Cache
         translator = GoogleTranslator(source='en', target='ar')
-        chunk_size = 10  # حجم دفعة صغير ومثالي للسيرفرات المشتركة
+        chunk_size = 10  
         
         for i in range(0, len(dom.nodes), chunk_size):
             chunk = dom.nodes[i:i+chunk_size]
@@ -193,7 +190,6 @@ class ProcessingEngine:
                         n_id = int(seg.get('id'))
                         trans_text = seg.text if seg.text else ""
                         
-                        # فك ترميز الكيانات المحمية وإعادتها لأصلها
                         for placeholder, original_val in tokens_map.items():
                             trans_text = trans_text.replace(placeholder, original_val)
                             trans_text = trans_text.replace(placeholder.strip(), original_val)
@@ -206,21 +202,24 @@ class ProcessingEngine:
                     logging.error(f"Batch translation error: {e}")
                     time.sleep(1)
 
-        # ج: طبقة استخراج المعرفة الأكاديمية (Anki Flashcards & Acronyms) لبناء الملحق التعليمي
         full_text_en = " ".join([n.original_text for n in dom.nodes])
         acronyms = set(re.findall(r'\b[A-Z]{3,4}\b', full_text_en))
         
         flashcards = []
         for node in dom.nodes:
             if "defined as" in node.original_text.lower() or "is the process of" in node.original_text.lower():
-                flashcards.append(f"• {node.original_text.split('is')[0].strip()} ➔ {node.translated_text}")
+                try:
+                    concept = node.original_text.split('is')[0].strip()
+                    flashcards.append(f"• {concept} ➔ {node.translated_text}")
+                except Exception:
+                    pass
 
         return {
             "acronyms": list(acronyms)[:10],
             "flashcards": flashcards[:5]
         }
 
-# 6. واجهات ومتحكمات البوت (Telegram UI Controllers)
+# 6. Telegram Bot Handlers
 def start(update: Update, context: CallbackContext):
     update.message.reply_text(
         "👋 مرحباً بك في منصة معالجة المعرفة الأكاديمية السيادية!\n\n"
@@ -241,11 +240,9 @@ def handle_document(update: Update, context: CallbackContext):
     output_path = os.path.join(VAULT_DIR, f"{job_id}_out.docx")
 
     try:
-        # تحميل الملف محلياً
         tg_file = context.bot.get_file(doc_file.file_id)
         tg_file.download(custom_path=input_path)
 
-        # فحص الحماية ضد الملفات القاتلة للموارد لصد الضغط عن بوتك الآخر
         StrictResourceValidator.validate(input_path)
         
         status_msg.edit_text("🧠 يجري الآن قراءة هيكل الـ DOM للمستند وعزل المعادلات والرموز العلمية...")
@@ -257,12 +254,10 @@ def handle_document(update: Update, context: CallbackContext):
         status_msg.edit_text("💾 جاري إعادة بناء ملف الوورد النهائي وحقن التلوين المزدوج...")
         dom.save_and_format(output_path)
 
-        # إرسال الملف المترجم النهائي للطالب
         status_msg.edit_text("✅ اكتملت المعالجة الهندسية بنجاح! جاري رفع ملفك...")
         with open(output_path, 'rb') as f:
             update.message.reply_document(document=f, filename=f"Bilingual_Result_{doc_file.file_name}")
 
-        # صياغة وإرسال كبسولة الذكاء الأكاديمي المضافة التلقائية
         knowledge_report = "🎓 **حزمة المراجعة المعرفية المستخرجة تلقائياً:**\n\n"
         if knowledge_data["acronyms"]:
             knowledge_report += f"🔍 **أهم الاختصارات الواردة:** {', '.join(knowledge_data['acronyms'])}\n\n"
@@ -277,19 +272,20 @@ def handle_document(update: Update, context: CallbackContext):
         logging.error(f"Error handling job {job_id}: {e}", exc_info=True)
         update.message.reply_text(f"❌ حدث خطأ أثناء المعالجة: {str(e)}")
     finally:
-        # التدمير الفوري والتام للملفات المادية من القرص الصلب لحفظ المساحة وخصوصية البيانات فوراً
-        if os.path.exists(input_path): os.remove(input_path)
-        if os.path.exists(output_path): os.remove(output_path)
-        if 'status_msg' in locals(): try: status_msg.delete() 
-        except Exception: pass
+        if os.path.exists(input_path): 
+            os.remove(input_path)
+        if os.path.exists(output_path): 
+            os.remove(output_path)
+        if 'status_msg' in locals():
+            try:
+                status_msg.delete()
+            except Exception:
+                pass
 
 def main():
     init_db()
     TOKEN = "6807502954:AAH5tOwXCjRXtF65wQFEDSkYeFBYIgUjblg"
     
-    # استخدام سلك معالجة أحادي منفرد (Single Worker Pattern)
-    # هذا يعني أنه لو قام 10 مستخدمين برفع ملفات معاً، سيعالجها البوت واحداً تلو الآخر بالترتيب تلقائياً
-    # وبذلك نضمن عدم حدوث أي ارتفاع مفاجئ (Spike) في استهلاك الـ CPU يضر بوتك الآخر
     updater = Updater(TOKEN, use_context=True)
     dp = updater.dispatcher
 
