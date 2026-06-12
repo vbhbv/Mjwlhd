@@ -1,25 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Academic Knowledge Telegram Bot - Python 3.13 Production Ready
+Academic Knowledge Telegram Bot - Async V20+ Production Version (Python 3.13 Ready)
 """
-# -------------------------------------------------------------------------
-# طبقة التوافق الجذري مع بايثون 3.13 (تخطي حظر غياب imghdr المحذوفة من اللغة)
-import sys
-try:
-    import imghdr
-except ImportError:
-    import filetype
-    class MockImgHdr:
-        @staticmethod
-        def what(file, h=None):
-            try:
-                kind = filetype.guess(file)
-                return kind.extension if kind else None
-            except Exception:
-                return None
-    sys.modules['imghdr'] = MockImgHdr
-# -------------------------------------------------------------------------
-
 import os
 import re
 import uuid
@@ -28,13 +10,16 @@ import logging
 import sqlite3
 import xml.etree.ElementTree as ET
 from contextlib import contextmanager
+
 from docx import Document
 from docx.shared import RGBColor, Pt
 from deep_translator import GoogleTranslator
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-# إعداد نظام التتبع ومراقبة الأداء
+# استيراد أدوات تيليجرام الحديثة والمتوافقة بالكامل مع Python 3.13
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+
+# إعداد نظام التتبع لمراقبة الأداء
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -96,7 +81,7 @@ class LocalTranslationMemory:
             except Exception as e:
                 logging.error(f"Error saving to cache: {e}")
 
-# صمام الأمان لمنع الضغط والانهيار عن بوتك الآخر
+# صمام الأمان والقيود الحوسبية لحماية البوت الآخر
 class StrictResourceValidator:
     MAX_PARAGRAPHS = 1500  
     MAX_TABLES = 30
@@ -117,7 +102,7 @@ class StrictResourceValidator:
                 if p_count > cls.MAX_PARAGRAPHS or t_count > cls.MAX_TABLES:
                     raise ValueError(f"الملف ضخم جداً حوسبياً لدعم خادمك المحدود! (الفقرات: {p_count}/{cls.MAX_PARAGRAPHS})")
 
-# نموذج الكائنات لشجرة المستند (DOM Processor)
+# معالج مستندات الوورد (DOM Processor)
 class NodeType:
     PARAGRAPH = "paragraph"
     TABLE_CELL = "table_cell"
@@ -163,7 +148,7 @@ class DocumentDOMProcessor:
                     pass
         self.doc.save(output_path)
 
-# محرك خط الإنتاج الذكي وحماية الكيانات المعقدة
+# محرك خط الإنتاج وعزل الكيانات العلمية وحفظ الكاش
 class ProcessingEngine:
     @staticmethod
     def process_document(dom: DocumentDOMProcessor, domain: str) -> dict:
@@ -237,44 +222,46 @@ class ProcessingEngine:
             "flashcards": flashcards[:5]
         }
 
-# واجهات التحكم بالبوت
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text(
-        "👋 مرحباً بك في منصة معالجة المعرفة الأكاديمية السيادية!\n\n"
-        "ℹ️ هذا البوت مصمم لتوفير استهلاك السيرفر بالكامل وحماية الموارد.\n"
-        "📂 أرسل لي أي ملف مستندات (Word .docx) مكتوب بالإنجليزية، وسأقوم بترجمته صياغياً وبنائياً مع تلوين مزدوج واستخراج بطاقات المراجعة الذكية آلياً."
+# واجهات التفاعل غير المتزامنة المتوافقة مع العمارة الحديثة (Async V20)
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "👋 مرحباً بك في منصة معالجة المعرفة الأكاديمية السيادية العصرية!\n\n"
+        "ℹ️ هذا البوت يعمل بنظام الاستماع غير المتزامن المستقر وتحت بيئة بايثون 3.13 بنجاح.\n"
+        "📂 أرسل لي أي ملف مستندات (Word .docx) مكتوب بالإنجليزية، وسأقوم بترجمته صياغياً وبنائياً آلياً وبأقل استهلاك ممكن لموارد السيرفر."
     )
 
-def handle_document(update: Update, context: CallbackContext):
+async def handle_document_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     doc_file = update.message.document
     if not doc_file.file_name.endswith('.docx'):
-        update.message.reply_text("❌ عذراً، البوت يدعم ملفات Word بصيغة (.docx) فقط حالياً.")
+        await update.message.reply_text("❌ عذراً، البوت يدعم ملفات Word بصيغة (.docx) فقط حالياً.")
         return
 
-    status_msg = update.message.reply_text("⏳ جاري تأمين المستند وفحص القيود الحوسبية في السيرفر...")
+    status_msg = await update.message.reply_text("⏳ جاري تأمين المستند وفحص القيود الحوسبية في السيرفر...")
     
     job_id = str(uuid.uuid4())
     input_path = os.path.join(VAULT_DIR, f"{job_id}_in.docx")
     output_path = os.path.join(VAULT_DIR, f"{job_id}_out.docx")
 
     try:
-        tg_file = context.bot.get_file(doc_file.file_id)
-        tg_file.download(custom_path=input_path)
+        # تحميل مستند المستخدم
+        tg_file = await context.bot.get_file(doc_file.file_id)
+        await tg_file.download_to_drive(custom_path=input_path)
 
+        # فحص الحماية الاقتصادية
         StrictResourceValidator.validate(input_path)
         
-        status_msg.edit_text("🧠 يجري الآن قراءة هيكل الـ DOM للمستند وعزل المعادلات والرموز العلمية...")
+        await status_msg.edit_text("🧠 يجري الآن قراءة هيكل الـ DOM للمستند وعزل المعادلات والرموز العلمية...")
         dom = DocumentDOMProcessor(input_path)
         
-        status_msg.edit_text("🚀 جاري معالجة دفعات الترجمة الذكية عبر الكاش المحلي المتزامن...")
+        await status_msg.edit_text("🚀 جاري معالجة دفعات الترجمة الذكية عبر الكاش المحلي المتزامن...")
         knowledge_data = ProcessingEngine.process_document(dom, "academic_general")
         
-        status_msg.edit_text("💾 جاري إعادة بناء ملف الوورد النهائي وحقن التلوين المزدوج...")
+        await status_msg.edit_text("💾 جاري إعادة بناء ملف الوورد النهائي وحقن التلوين المزدوج...")
         dom.save_and_format(output_path)
 
-        status_msg.edit_text("✅ اكتملت المعالجة الهندسية بنجاح! جاري رفع ملفك...")
+        await status_msg.edit_text("✅ اكتملت المعالجة الهندسية بنجاح! جاري رفع ملفك...")
         with open(output_path, 'rb') as f:
-            update.message.reply_document(document=f, filename=f"Bilingual_Result_{doc_file.file_name}")
+            await update.message.reply_document(document=f, filename=f"Bilingual_Result_{doc_file.file_name}")
 
         knowledge_report = "🎓 **حزمة المراجعة المعرفية المستخرجة تلقائياً:**\n\n"
         if knowledge_data["acronyms"]:
@@ -284,19 +271,20 @@ def handle_document(update: Update, context: CallbackContext):
         else:
             knowledge_report += "📝 لم يتم رصد جمل تعريفية صريحة لصناعة بطاقات استذكار تلقائية."
 
-        update.message.reply_text(knowledge_report, parse_mode="Markdown")
+        await update.message.reply_text(knowledge_report, parse_mode="Markdown")
 
     except Exception as e:
         logging.error(f"Error handling job {job_id}: {e}", exc_info=True)
-        update.message.reply_text(f"❌ حدث خطأ أثناء المعالجة: {str(e)}")
+        await update.message.reply_text(f"❌ حدث خطأ أثناء المعالجة: {str(e)}")
     finally:
+        # الحذف والتطهير الفوري لحماية مساحة السيرفر المشترك
         if os.path.exists(input_path): 
             os.remove(input_path)
         if os.path.exists(output_path): 
             os.remove(output_path)
         if 'status_msg' in locals():
             try:
-                status_msg.delete()
+                await status_msg.delete()
             except Exception:
                 pass
 
@@ -304,15 +292,14 @@ def main():
     init_db()
     TOKEN = "6807502954:AAH5tOwXCjRXtF65wQFEDSkYeFBYIgUjblg"
     
-    updater = Updater(TOKEN, use_context=True)
-    dp = updater.dispatcher
+    # بناء التطبيق بالمعمارية الحديثة V20
+    application = Application.builder().token(TOKEN).build()
 
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.document, handle_document))
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(MessageHandler(filters.Document.ALL, handle_document_command))
 
-    logging.info("🚀 البوت الأكاديمي يعمل الآن بنظام التقشف الحوسبي الآمن...")
-    updater.start_polling()
-    updater.idle()
+    logging.info("🚀 البوت الأكاديمي يعمل الآن بأحدث معمارية غير متزامنة متوافقة مع بايثون 3.13...")
+    application.run_polling()
 
 if __name__ == '__main__':
     main()
