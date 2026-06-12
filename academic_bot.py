@@ -1,7 +1,25 @@
 # -*- coding: utf-8 -*-
 """
-Academic Knowledge Telegram Bot - Stable Production Version
+Academic Knowledge Telegram Bot - Python 3.13 Production Ready
 """
+# -------------------------------------------------------------------------
+# طبقة التوافق الجذري مع بايثون 3.13 (تخطي حظر غياب imghdr المحذوفة من اللغة)
+import sys
+try:
+    import imghdr
+except ImportError:
+    import filetype
+    class MockImgHdr:
+        @staticmethod
+        def what(file, h=None):
+            try:
+                kind = filetype.guess(file)
+                return kind.extension if kind else None
+            except Exception:
+                return None
+    sys.modules['imghdr'] = MockImgHdr
+# -------------------------------------------------------------------------
+
 import os
 import re
 import uuid
@@ -16,7 +34,7 @@ from deep_translator import GoogleTranslator
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-# 1. Logging Setup
+# إعداد نظام التتبع ومراقبة الأداء
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -27,7 +45,7 @@ DB_NAME = "bot_academic_memory.db"
 VAULT_DIR = "bot_vault"
 os.makedirs(VAULT_DIR, exist_ok=True)
 
-# 2. Database Layer (SQLite + WAL Mode)
+# طبقة البيانات الاقتصادية (SQLite + WAL Mode)
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
         conn.execute("PRAGMA journal_mode=WAL;")
@@ -78,7 +96,7 @@ class LocalTranslationMemory:
             except Exception as e:
                 logging.error(f"Error saving to cache: {e}")
 
-# 3. Resource and Guardrail Validator
+# صمام الأمان لمنع الضغط والانهيار عن بوتك الآخر
 class StrictResourceValidator:
     MAX_PARAGRAPHS = 1500  
     MAX_TABLES = 30
@@ -99,7 +117,7 @@ class StrictResourceValidator:
                 if p_count > cls.MAX_PARAGRAPHS or t_count > cls.MAX_TABLES:
                     raise ValueError(f"الملف ضخم جداً حوسبياً لدعم خادمك المحدود! (الفقرات: {p_count}/{cls.MAX_PARAGRAPHS})")
 
-# 4. Document Object Model (DOM) Processor
+# نموذج الكائنات لشجرة المستند (DOM Processor)
 class NodeType:
     PARAGRAPH = "paragraph"
     TABLE_CELL = "table_cell"
@@ -145,7 +163,7 @@ class DocumentDOMProcessor:
                     pass
         self.doc.save(output_path)
 
-# 5. Core Pipeline Engine
+# محرك خط الإنتاج الذكي وحماية الكيانات المعقدة
 class ProcessingEngine:
     @staticmethod
     def process_document(dom: DocumentDOMProcessor, domain: str) -> dict:
@@ -219,7 +237,7 @@ class ProcessingEngine:
             "flashcards": flashcards[:5]
         }
 
-# 6. Telegram Bot Handlers
+# واجهات التحكم بالبوت
 def start(update: Update, context: CallbackContext):
     update.message.reply_text(
         "👋 مرحباً بك في منصة معالجة المعرفة الأكاديمية السيادية!\n\n"
